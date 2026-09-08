@@ -1,0 +1,55 @@
+name: Codex PR comprehensive validation
+
+on:
+  push:
+    branches:
+      - codex/verify-pr-22827
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-focused-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.19.0
+          cache: yarn
+      - name: Install JavaScript dependencies without Electron or native builds
+        run: yarn --ignore-scripts --frozen-lockfile
+      - run: yarn validate-electron-version
+      - run: yarn lint
+      - run: yarn validate-changelog
+      - run: node script/test.mjs app/test/unit/path-test.ts
+      - run: git diff --name-status --exit-code
+
+  focused-test-windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.19.0
+          cache: yarn
+      - name: Install JavaScript dependencies without Electron or native builds
+        run: yarn --ignore-scripts --frozen-lockfile
+      - run: yarn validate-electron-version
+      - run: node script/test.mjs app/test/unit/path-test.ts
+
+  codeql:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: github/codeql-action/init@v3
+        with:
+          config-file: ./.github/codeql/codeql-config.yml
+      - uses: github/codeql-action/autobuild@v3
+      - uses: github/codeql-action/analyze@v3
